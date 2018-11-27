@@ -1,0 +1,11 @@
+pipeline:
+  # Build base image to build from
+  docker:
+    image: plugins/docker
+    secrets: [ docker_username, docker_password ]
+    repo: wintercircle/postgres
+    context: 9.6/
+    tags: 9.6
+    dockerfile: 9.6/Dockerfile
+    when:
+      event: push
