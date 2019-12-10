@@ -4,17 +4,17 @@ pipeline:
     image: plugins/docker
     secrets: [ docker_username, docker_password ]
     repo: wintercircle/postgres
-    context: 9.6/
-    tags: 9.6
-    dockerfile: 9.6/Dockerfile
+    context: 10/
+    tags: 10
+    dockerfile: 10/Dockerfile
     when:
       event: push
   docker-alpine:
     image: plugins/docker
     secrets: [ docker_username, docker_password ]
     repo: wintercircle/postgres
-    context: 9.6/alpine/
-    tags: 9.6-alpine
-    dockerfile: 9.6/alpine/Dockerfile
+    context: 10/alpine/
+    tags: 10-alpine
+    dockerfile: 10/alpine/Dockerfile
     when:
       event: push
