@@ -1,5 +1,5 @@
 # vim:set ft=dockerfile:
-FROM debian:stretch-slim
+FROM debian:buster-slim
 
 RUN set -ex; \
 	if ! command -v gpg > /dev/null; then \
@@ -22,13 +22,13 @@ RUN set -eux; \
 	chown -R postgres:postgres /var/lib/postgresql
 
 # grab gosu for easy step-down from root
-ENV GOSU_VERSION 1.10
+ENV GOSU_VERSION 1.11
 RUN set -x \
 	&& apt-get update && apt-get install -y --no-install-recommends ca-certificates wget && rm -rf /var/lib/apt/lists/* \
 	&& wget -O /usr/local/bin/gosu "https://github.com/tianon/gosu/releases/download/$GOSU_VERSION/gosu-$(dpkg --print-architecture)" \
 	&& wget -O /usr/local/bin/gosu.asc "https://github.com/tianon/gosu/releases/download/$GOSU_VERSION/gosu-$(dpkg --print-architecture).asc" \
 	&& export GNUPGHOME="$(mktemp -d)" \
-	&& gpg --batch --keyserver ha.pool.sks-keyservers.net --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4 \
+	&& gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4 \
 	&& gpg --batch --verify /usr/local/bin/gosu.asc /usr/local/bin/gosu \
 	&& { command -v gpgconf > /dev/null && gpgconf --kill all || :; } \
 	&& rm -rf "$GNUPGHOME" /usr/local/bin/gosu.asc \
@@ -70,8 +70,8 @@ RUN set -ex; \
 	rm -rf "$GNUPGHOME"; \
 	apt-key list
 
-ENV PG_MAJOR 9.3
-ENV PG_VERSION 9.3.25-1.pgdg90+1
+ENV PG_MAJOR 12
+ENV PG_VERSION 12.1-1.pgdg100+1
 
 RUN set -ex; \
 	\
@@ -82,20 +82,20 @@ RUN set -ex; \
 	case "$dpkgArch" in \
 		amd64|i386|ppc64el) \
 # arches officialy built by upstream
-			echo "deb http://apt.postgresql.org/pub/repos/apt/ stretch-pgdg main $PG_MAJOR" > /etc/apt/sources.list.d/pgdg.list; \
+			echo "deb http://apt.postgresql.org/pub/repos/apt/ buster-pgdg main $PG_MAJOR" > /etc/apt/sources.list.d/pgdg.list; \
 			apt-get update; \
 			;; \
 		*) \
 # we're on an architecture upstream doesn't officially build for
 # let's build binaries from their published source packages
-			echo "deb-src http://apt.postgresql.org/pub/repos/apt/ stretch-pgdg main $PG_MAJOR" > /etc/apt/sources.list.d/pgdg.list; \
+			echo "deb-src http://apt.postgresql.org/pub/repos/apt/ buster-pgdg main $PG_MAJOR" > /etc/apt/sources.list.d/pgdg.list; \
 			\
 			case "$PG_MAJOR" in \
 				9.* | 10 ) ;; \
 				*) \
 # https://github.com/docker-library/postgres/issues/484 (clang-6.0 required, only available in stretch-backports)
 # TODO remove this once we hit buster+
-					echo 'deb http://deb.debian.org/debian stretch-backports main' >> /etc/apt/sources.list.d/pgdg.list; \
+					echo 'deb http://deb.debian.org/debian buster-backports main' >> /etc/apt/sources.list.d/pgdg.list; \
 					;; \
 			esac; \
 			\
@@ -139,7 +139,6 @@ RUN set -ex; \
 	sed -ri 's/#(create_main_cluster) .*$/\1 = false/' /etc/postgresql-common/createcluster.conf; \
 	apt-get install -y \
 		"postgresql-$PG_MAJOR=$PG_VERSION" \
-		"postgresql-contrib-$PG_MAJOR=$PG_VERSION" \
 	; \
 	\
 	rm -rf /var/lib/apt/lists/*; \
@@ -165,7 +164,8 @@ RUN mkdir -p /var/run/postgresql && chown -R postgres:postgres /var/run/postgres
 
 ENV PATH $PATH:/usr/lib/postgresql/$PG_MAJOR/bin
 ENV PGDATA /var/lib/postgresql/data
-RUN mkdir -p "$PGDATA" && chown -R postgres:postgres "$PGDATA" && chmod 777 "$PGDATA" # this 777 will be replaced by 700 at runtime (allows semi-arbitrary "--user" values)
+# this 777 will be replaced by 700 at runtime (allows semi-arbitrary "--user" values)
+RUN mkdir -p "$PGDATA" && chown -R postgres:postgres "$PGDATA" && chmod 777 "$PGDATA"
 
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN ln -s usr/local/bin/docker-entrypoint.sh / # backwards compat

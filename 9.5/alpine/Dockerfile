@@ -1,5 +1,5 @@
 # vim:set ft=dockerfile:
-FROM alpine:3.8
+FROM alpine:3.10
 
 # alpine includes "postgres" user/group in base install
 #   /etc/passwd:22:postgres:x:70:70::/var/lib/postgresql:/bin/sh
@@ -22,8 +22,8 @@ ENV LANG en_US.utf8
 RUN mkdir /docker-entrypoint-initdb.d
 
 ENV PG_MAJOR 9.5
-ENV PG_VERSION 9.5.15
-ENV PG_SHA256 dbda3fdefd7f9fd5359a7989085aaef25c9f9d08816eda6378c2575d1ff55444
+ENV PG_VERSION 9.5.20
+ENV PG_SHA256 925751b375cf975bebbe79753fbcb5fe85d7a62abe516d4c56861a6b877dde0d
 
 RUN set -ex \
 	\
@@ -53,6 +53,7 @@ RUN set -ex \
 		libedit-dev \
 		libxml2-dev \
 		libxslt-dev \
+		linux-headers \
 		make \
 #		openldap-dev \
 		openssl-dev \
@@ -139,7 +140,8 @@ RUN sed -ri "s!^#?(listen_addresses)\s*=\s*\S+.*!\1 = '*'!" /usr/local/share/pos
 RUN mkdir -p /var/run/postgresql && chown -R postgres:postgres /var/run/postgresql && chmod 2777 /var/run/postgresql
 
 ENV PGDATA /var/lib/postgresql/data
-RUN mkdir -p "$PGDATA" && chown -R postgres:postgres "$PGDATA" && chmod 777 "$PGDATA" # this 777 will be replaced by 700 at runtime (allows semi-arbitrary "--user" values)
+# this 777 will be replaced by 700 at runtime (allows semi-arbitrary "--user" values)
+RUN mkdir -p "$PGDATA" && chown -R postgres:postgres "$PGDATA" && chmod 777 "$PGDATA"
 
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN ln -s usr/local/bin/docker-entrypoint.sh / # backwards compat

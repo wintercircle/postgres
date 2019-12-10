@@ -12,20 +12,21 @@ versions=( "${versions[@]%/}" )
 # sort version numbers with highest last (so it goes first in .travis.yml)
 IFS=$'\n'; versions=( $(echo "${versions[*]}" | sort -V) ); unset IFS
 
-defaultDebianSuite='stretch-slim'
+defaultDebianSuite='buster-slim'
 declare -A debianSuite=(
-	#[9.6]='jessie'
+	# https://github.com/docker-library/postgres/issues/582
+	[9.4]='stretch-slim'
+	[9.5]='stretch-slim'
+	[9.6]='stretch-slim'
+	[10]='stretch-slim'
+	[11]='stretch-slim'
 )
-defaultAlpineVersion='3.8'
+defaultAlpineVersion='3.10'
 declare -A alpineVersion=(
 	#[9.6]='3.5'
 )
 
 packagesBase='http://apt.postgresql.org/pub/repos/apt/dists/'
-
-# https://www.mirrorservice.org/sites/ftp.ossp.org/pkg/lib/uuid/?C=M;O=D
-osspUuidVersion='1.6.2'
-osspUuidHash='11a615225baa5f8bb686824423f50e4427acd3f70d394765bdff32801f0fd5b0'
 
 declare -A suitePackageList=() suiteArches=()
 travisEnv=
@@ -92,28 +93,13 @@ for version in "${versions[@]}"; do
 			sed -i -e '/icu/d' "$version/$variant/Dockerfile"
 		fi
 
-		# TODO remove all this when 9.3 is EOL (2018-10-01 -- from http://www.postgresql.org/support/versioning/)
-		case "$version" in
-			9.3)
-				uuidConfigFlag='--with-ossp-uuid'
-				sed -i \
-					-e 's/%%OSSP_UUID_ENV_VARS%%/ENV OSSP_UUID_VERSION '"$osspUuidVersion"'\nENV OSSP_UUID_SHA256 '"$osspUuidHash"'\n/' \
-					-e $'/%%INSTALL_OSSP_UUID%%/ {r ossp-uuid.template\n d}' \
-					"$version/$variant/Dockerfile"
-
-				# configure: WARNING: unrecognized options: --enable-tap-tests
-				sed -i '/--enable-tap-tests/d' "$version/$variant/Dockerfile"
-				;;
-
-			*)
-				uuidConfigFlag='--with-uuid=e2fs'
-				sed -i \
-					-e '/%%OSSP_UUID_ENV_VARS%%/d' \
-					-e '/%%INSTALL_OSSP_UUID%%/d' \
-					"$version/$variant/Dockerfile"
-				;;
-		esac
-		sed -i 's/%%UUID_CONFIG_FLAG%%/'"$uuidConfigFlag"'/' "$version/$variant/Dockerfile"
+		if [ "$majorVersion" -gt 11 ]; then
+			sed -i '/backwards compat/d' "$version/$variant/Dockerfile"
+		fi
+		if [ "$majorVersion" -lt 11 ]; then
+			# JIT / LLVM is only supported in PostgreSQL 11+ (https://github.com/docker-library/postgres/issues/475)
+			sed -i '/llvm/d' "$version/$variant/Dockerfile"
+		fi
 
 		travisEnv="\n  - VERSION=$version VARIANT=$variant$travisEnv"
 	done

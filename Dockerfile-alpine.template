@@ -25,7 +25,6 @@ ENV PG_MAJOR %%PG_MAJOR%%
 ENV PG_VERSION %%PG_VERSION%%
 ENV PG_SHA256 %%PG_SHA256%%
 
-%%OSSP_UUID_ENV_VARS%%
 RUN set -ex \
 	\
 	&& apk add --no-cache --virtual .fetch-deps \
@@ -54,6 +53,8 @@ RUN set -ex \
 		libedit-dev \
 		libxml2-dev \
 		libxslt-dev \
+		linux-headers \
+		llvm8-dev clang g++ \
 		make \
 #		openldap-dev \
 		openssl-dev \
@@ -69,7 +70,6 @@ RUN set -ex \
 		zlib-dev \
 		icu-dev \
 	\
-%%INSTALL_OSSP_UUID%%
 	&& cd /usr/src/postgresql \
 # update "DEFAULT_PGSOCKET_DIR" to "/var/run/postgresql" (matching Debian)
 # see https://anonscm.debian.org/git/pkg-postgresql/postgresql.git/tree/debian/patches/51-default-sockets-in-var.patch?id=8b539fcb3e093a521c095e70bdfa76887217b89f
@@ -92,7 +92,7 @@ RUN set -ex \
 # skip debugging info -- we want tiny size instead
 #		--enable-debug \
 		--disable-rpath \
-		%%UUID_CONFIG_FLAG%% \
+		--with-uuid=e2fs \
 		--with-gnu-ld \
 		--with-pgport=5432 \
 		--with-system-tzdata=/usr/share/zoneinfo \
@@ -112,6 +112,7 @@ RUN set -ex \
 		--with-libxml \
 		--with-libxslt \
 		--with-icu \
+		--with-llvm \
 	&& make -j "$(nproc)" world \
 	&& make install-world \
 	&& make -C contrib install \
@@ -143,7 +144,8 @@ RUN sed -ri "s!^#?(listen_addresses)\s*=\s*\S+.*!\1 = '*'!" /usr/local/share/pos
 RUN mkdir -p /var/run/postgresql && chown -R postgres:postgres /var/run/postgresql && chmod 2777 /var/run/postgresql
 
 ENV PGDATA /var/lib/postgresql/data
-RUN mkdir -p "$PGDATA" && chown -R postgres:postgres "$PGDATA" && chmod 777 "$PGDATA" # this 777 will be replaced by 700 at runtime (allows semi-arbitrary "--user" values)
+# this 777 will be replaced by 700 at runtime (allows semi-arbitrary "--user" values)
+RUN mkdir -p "$PGDATA" && chown -R postgres:postgres "$PGDATA" && chmod 777 "$PGDATA"
 
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN ln -s usr/local/bin/docker-entrypoint.sh / # backwards compat
